@@ -79,16 +79,16 @@ st.markdown("""
 @st.cache_data
 def load_data():
     # 1. 매출 요약 데이터
-    rev_summary = pd.read_csv("Project3/data/revenue_analysis_summary.csv")
+    rev_summary = pd.read_csv("revenue_analysis_summary.csv")
     
     # 2. 브랜드 점포 데이터
-    branded_stores = pd.read_csv("Project3/data/7. branded_Convenience_Store.csv")
+    branded_stores = pd.read_csv("7. branded_Convenience_Store.csv")
     
     # 3. 네모 상가 데이터 (가산, 여의)
     # 파일 경로가 프로젝트 폴더 외부에 있으므로 절대 경로 혹은 상대 경로 조절 필요
     # 현재 위치: convenience_dashboard/src/app.py -> Project3는 상위 디렉토리의 Project3에 있음
-    nemo_gasan = pd.read_csv("Project3/data/10. nemo_stores_gasan.csv")
-    nemo_yeui = pd.read_csv("Project3/data/9. nemo_stores_yeui.csv")
+    nemo_gasan = pd.read_csv("10. nemo_stores_gasan.csv")
+    nemo_yeui = pd.read_csv("9. nemo_stores_yeui.csv")
     
     nemo_gasan['District'] = '가산동'
     nemo_yeui['District'] = '여의동'
