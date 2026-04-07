@@ -155,6 +155,15 @@ try:
     st.sidebar.header("📍 분석 지역")
     target_dong = st.sidebar.selectbox("지역을 선택하세요", ["가산동", "여의동"])
 
+    st.sidebar.markdown("---")
+    st.sidebar.header("📏 역과의 거리")
+    dist_range = st.sidebar.slider(
+        "반경 선택 (m)", 
+        0, 1000, (0, 500), 
+        step=50,
+        help="지하철역으로부터 떨어진 실제 보행 거리 범위를 선택하세요."
+    )
+
     # 지표 계산
     district_rev = rev_summary[rev_summary['Dong'] == target_dong]
     latest_q = district_rev['Quarter'].max()
@@ -211,7 +220,12 @@ try:
     with tab2:
         st.subheader("💰 임대 시세 및 거리 분석")
         
-        n_filtered = nemo_data[nemo_data['District'] == target_dong].dropna(subset=['Walk_Min'])
+        # 데이터 필터링 (지역 + 거리 범위)
+        n_filtered = nemo_data[
+            (nemo_data['District'] == target_dong) & 
+            (nemo_data['Distance_m'] >= dist_range[0]) & 
+            (nemo_data['Distance_m'] <= dist_range[1])
+        ].dropna(subset=['Walk_Min'])
         
         # 산점도 시각화
         fig_scatter = px.scatter(n_filtered, x='Distance_m', y='Rent', 
@@ -228,15 +242,15 @@ try:
         st.plotly_chart(fig_scatter, use_container_width=True)
         st.caption("※ 보증금 크기에 따라 원의 크기가 결정됩니다. 붉은색 점은 접근성이 높은 1층 매물입니다.")
 
-        st.markdown("### 📋 주요 매물 리스트 (역세권 350m 이내)")
-        st.dataframe(n_filtered[n_filtered['Distance_m'] <= 350].sort_values('Distance_m')[['category_location', 'price', 'area_floor', 'description']].reset_index(drop=True), use_container_width=True)
+        st.markdown(f"### 📋 주요 매물 리스트 ({dist_range[0]}m ~ {dist_range[1]}m 이내)")
+        st.dataframe(n_filtered.sort_values('Distance_m')[['category_location', 'price', 'area_floor', 'description']].reset_index(drop=True), use_container_width=True)
 
     with tab3:
         st.subheader("🚀 전략적 입점 추천")
         
-        # 추천 매물 선정 (200-350m 이내 1층 매물 중 저렴한 순)
+        # 추천 매물 선정 (선택된 거리 범위 내 1층 매물 중 저렴한 순)
         best_pick = n_filtered[
-            (n_filtered['Distance_m'] >= 200) & (n_filtered['Distance_m'] <= 350) & (n_filtered['Is_1F'] == True)
+            (n_filtered['Is_1F'] == True)
         ].sort_values('Rent')
 
         col_a, col_b = st.columns([1, 1])
@@ -272,3 +286,4 @@ try:
 except Exception as e:
     st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
     st.info("Project3/data 폴더 내에 필요한 CSV 파일들이 있는지 확인해 주세요.")
+
