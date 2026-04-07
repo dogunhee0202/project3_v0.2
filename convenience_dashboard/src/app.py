@@ -24,7 +24,7 @@ st.markdown("""
     }
 
     .main {
-        background-color: #f8f9fa;
+        background-color: #ffffff;
     }
     
     /* 메트릭 카드 스타일 */
@@ -32,8 +32,24 @@ st.markdown("""
         background-color: #ffffff;
         padding: 1.5rem;
         border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        border: 1px solid #eef2f6;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        border: 1px solid #f1f5f9;
+        transition: transform 0.2s ease-in-out;
+    }
+
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+    }
+
+    /* 메트릭 텍스트 색상 (가독성 문제 해결) */
+    [data-testid="stMetricLabel"] {
+        color: #64748b !important;
+        font-weight: 500 !important;
+    }
+
+    [data-testid="stMetricValue"] {
+        color: #1e293b !important;
+        font-weight: 700 !important;
     }
     
     /* 탭 디자인 */
@@ -69,7 +85,7 @@ st.markdown("""
 
     /* 사이드바 */
     [data-testid="stSidebar"] {
-        background-color: #ffffff;
+        background-color: #f8f9fa;
         border-right: 1px solid #e2e8f0;
     }
 </style>
