@@ -235,6 +235,74 @@ try:
             fig_pie.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig_pie, use_container_width=True)
 
+        st.markdown("---")
+        st.subheader("🗺️ 지역별 편의점 분포 지도")
+        st.markdown("브랜드별로 편의점 위치를 확인할 수 있습니다.")
+
+        # 브랜드 색상 매핑
+        brand_colors = {
+            'GS25': '#00B0F0',      # 하늘색
+            'CU': '#744199',        # 보라색
+            '세븐일레븐': '#008000',   # 초록색
+            '이마트24': '#FFB81C',    # 노란색
+            '미니스톱': '#0055A4',    # 파란색
+            '기타': '#808080'         # 회색
+        }
+
+        # 역 좌표 정의
+        station_coords = {
+            '가산디지털단지역': {'lat': 37.4812, 'lon': 126.8827},
+            '여의도역': {'lat': 37.5216, 'lon': 126.9242}
+        }
+
+        map_col1, map_col2 = st.columns(2)
+
+        with map_col1:
+            st.markdown("#### 🚉 가산디지털단지역 주변")
+            gasan_stores = branded_stores[branded_stores['행정동명'] == '가산동']
+            if not gasan_stores.empty:
+                fig_gasan = px.scatter_mapbox(
+                    gasan_stores, 
+                    lat="위도", lon="경도", 
+                    color="Brand",
+                    hover_name="상호명",
+                    color_discrete_map=brand_colors,
+                    zoom=14,
+                    height=450,
+                    mapbox_style="carto-positron"
+                )
+                fig_gasan.update_layout(
+                    margin={"r":0,"t":0,"l":0,"b":0},
+                    showlegend=True,
+                    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+                )
+                st.plotly_chart(fig_gasan, use_container_width=True)
+            else:
+                st.info("가산동 편의점 데이터가 없습니다.")
+
+        with map_col2:
+            st.markdown("#### 🚉 여의도역 주변")
+            yeui_stores = branded_stores[branded_stores['행정동명'] == '여의동']
+            if not yeui_stores.empty:
+                fig_yeui = px.scatter_mapbox(
+                    yeui_stores, 
+                    lat="위도", lon="경도", 
+                    color="Brand",
+                    hover_name="상호명",
+                    color_discrete_map=brand_colors,
+                    zoom=14,
+                    height=450,
+                    mapbox_style="carto-positron"
+                )
+                fig_yeui.update_layout(
+                    margin={"r":0,"t":0,"l":0,"b":0},
+                    showlegend=True,
+                    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+                )
+                st.plotly_chart(fig_yeui, use_container_width=True)
+            else:
+                st.info("여의동 편의점 데이터가 없습니다.")
+
     with tab2:
         st.subheader("💰 임대 시세 및 거리 분석")
         
