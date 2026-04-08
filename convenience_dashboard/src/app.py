@@ -151,7 +151,7 @@ try:
     st.title("🏪 편의점 입점 전략 Analytics Dashboard")
     st.markdown("가산동 및 여의동 상권 분석 데이터를 기반으로 최적의 입지 추천을 제공합니다.")
 
-    # 사이드바 설정
+    # 사이드바 설정 (필터 변수 우선 정의)
     st.sidebar.header("📍 분석 지역")
     target_dong = st.sidebar.selectbox("지역을 선택하세요", ["가산동", "여의동"])
 
@@ -164,7 +164,25 @@ try:
         help="지하철역으로부터 떨어진 실제 보행 거리 범위를 선택하세요."
     )
 
-    # 지표 계산
+    # 매물 데이터 필터링 (필터 변수 정의 후 수행)
+    n_filtered = nemo_data[
+        (nemo_data['District'] == target_dong) & 
+        (nemo_data['Distance_m'] >= dist_range[0]) & 
+        (nemo_data['Distance_m'] <= dist_range[1])
+    ].dropna(subset=['Walk_Min'])
+
+    # 상단 매물 지표 추가
+    m_col1, m_col2, m_col3 = st.columns(3)
+    with m_col1:
+        st.metric("매물 개수", f"{len(n_filtered)}개", help="선택된 필터 조건에 맞는 부동산 매물 수")
+    with m_col2:
+        avg_rent = n_filtered['Rent'].mean() if not n_filtered.empty else 0
+        st.metric("평균 월세", f"{avg_rent:.1f} 만", help="필터링된 매물의 평균 월세")
+    with m_col3:
+        avg_deposit = n_filtered['Deposit'].mean() if not n_filtered.empty else 0
+        st.metric("평균 보증금", f"{avg_deposit:.0f} 만", help="필터링된 매물의 평균 보증금")
+
+    # 상권 지표 데이터 계산
     district_rev = rev_summary[rev_summary['Dong'] == target_dong]
     latest_q = district_rev['Quarter'].max()
     q_data = district_rev[district_rev['Quarter'] == latest_q]
@@ -175,23 +193,23 @@ try:
     else:
         avg_rev_per_store, total_stores = 0, 0
 
-    # 주요 지표 (KPIs)
-    st.markdown("### 🔑 주요 상권 지표")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("총 점포 수", f"{total_stores}개", help="2025년 4분기 기준 점포 수")
-    with col2:
-        st.metric("점포당 평균 매출", f"{avg_rev_per_store:.1f} M", help="월간 추정 매출액 (단위: 백만 원)")
-    with col3:
-        market_val = (avg_rev_per_store * total_stores / 10)
-        st.metric("월간 시장 규모", f"{market_val:.1f} 억", help="행정동 전체 편의점 합산 매출액")
-
     st.markdown("---")
 
     # 탭 구성
-    tab1, tab2, tab3 = st.tabs(["📊 시장 트렌드", "📍 임대료 & 입지 분석", "💡 추천 입점 전략"])
+    tab1, tab2, tab3 = st.tabs(["📊 편의점 현황", "📍 임대료 & 입지 분석", "💡 추천 입점 전략"])
 
     with tab1:
+        st.subheader("📊 주요 상권 지표")
+        kpi1, kpi2, kpi3 = st.columns(3)
+        with kpi1:
+            st.metric("총 점포 수", f"{total_stores}개", help="2025년 4분기 기준 점포 수")
+        with kpi2:
+            st.metric("점포당 평균 매출", f"{avg_rev_per_store:.1f} M", help="월간 추정 매출액 (단위: 백만 원)")
+        with kpi3:
+            market_val = (avg_rev_per_store * total_stores / 10)
+            st.metric("월간 시장 규모", f"{market_val:.1f} 억", help="행정동 전체 편의점 합산 매출액")
+        
+        st.markdown("---")
         st.subheader("📈 성과 트렌드 분석")
         c1, c2 = st.columns([3, 2])
         
@@ -219,13 +237,6 @@ try:
 
     with tab2:
         st.subheader("💰 임대 시세 및 거리 분석")
-        
-        # 데이터 필터링 (지역 + 거리 범위)
-        n_filtered = nemo_data[
-            (nemo_data['District'] == target_dong) & 
-            (nemo_data['Distance_m'] >= dist_range[0]) & 
-            (nemo_data['Distance_m'] <= dist_range[1])
-        ].dropna(subset=['Walk_Min'])
         
         # 산점도 시각화
         fig_scatter = px.scatter(n_filtered, x='Distance_m', y='Rent', 
@@ -286,4 +297,3 @@ try:
 except Exception as e:
     st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
     st.info("Project3/data 폴더 내에 필요한 CSV 파일들이 있는지 확인해 주세요.")
-
