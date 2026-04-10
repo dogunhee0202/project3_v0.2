@@ -138,9 +138,19 @@ def load_data():
         except: pass
         return None
 
+    def parse_area(area_str):
+        # "지상 1층, 33㎡ / 10평" -> 33
+        try:
+            match = re.search(r'([\d.]+)\s*㎡', str(area_str))
+            if match:
+                return float(match.group(1))
+        except: pass
+        return 0.0
+
     nemo_combined['Deposit'], nemo_combined['Rent'] = zip(*nemo_combined['price'].apply(parse_price))
     nemo_combined['Walk_Min'] = nemo_combined['category_location'].apply(parse_distance)
     nemo_combined['Distance_m'] = nemo_combined['Walk_Min'] * 70 # 1분당 70m 가정
+    nemo_combined['Area_m2'] = nemo_combined['area_floor'].apply(parse_area)
     
     # 지상 1층 여부
     nemo_combined['Is_1F'] = nemo_combined['area_floor'].astype(str).str.contains('지상 1층')
@@ -183,6 +193,22 @@ try:
     tab1, tab2, tab3 = st.tabs(["📊 편의점 현황", "📍 임대료 & 입지 분석", "💡 추천 입점 전략"])
 
     with tab1:
+        # [신규] 지역별 추천 브랜드 전략 (tab3에서 최상단으로 이동)
+        st.subheader("💡 지역별 추천 브랜드 전략")
+        if target_dong == '여의동':
+            st.info("""
+            **브랜드 전략: 프리미엄 & F&B 특화**
+            - 높은 점포당 수익성을 바탕으로 고가 도시락 및 디저트 라인업 강화
+            - **GS25**와 **세븐일레븐**의 경쟁이 치열하므로, 오피스 빌딩 내 폐쇄적 환경보다 오픈된 사거리 코너 입지 우선 확보 권장.
+            """)
+        else:
+            st.info("""
+            **브랜드 전략: 가성비 & 물류 특화**
+            - IT 단지 특성상 야근/조식 수요가 많으므로 간편식 재고 회전율이 높은 브랜드 추천
+            - **CU**가 현재 점유율 1위이나, 경쟁 완화 구역인 역외곽 300m 지점에 **이마트24** 등 신규 브랜드의 '무인 시스템' 병행 매장 입점 시 유리.
+            """)
+        
+        st.markdown("---")
         st.subheader("📊 주요 상권 지표")
         kpi1, kpi2, kpi3 = st.columns(3)
         with kpi1:
@@ -346,7 +372,8 @@ try:
         st.subheader("💰 임대 시세 및 입지 분석")
         
         # 필터 레이아웃
-        f_col1, f_col2, f_col3 = st.columns(3)
+        st.markdown("### 🔍 필터")
+        f_col1, f_col2, f_col3, f_col4 = st.columns(4)
         with f_col1:
             st.session_state.dist_range = st.slider("역과의 거리 (m)", 0, 1000, st.session_state.dist_range, step=50)
         with f_col2:
@@ -355,14 +382,27 @@ try:
         with f_col3:
             max_dep = int(nemo_data['Deposit'].max())
             st.session_state.dep_range = st.slider("보증금 범위 (만 원)", 0, max_dep, st.session_state.dep_range, step=500)
+        with f_col4:
+            area_options = ["전체", "33㎡ 이하 (~10평)", "33-66㎡ (10-20평)", "66-99㎡ (20-30평)", "99㎡ 이상 (30평~)"]
+            selected_area = st.selectbox("전용면적", options=area_options)
 
-        # 데이터 필터링
+        # 데이터 필터링 로직 강화
         n_filtered = nemo_data[
             (nemo_data['District'] == target_dong) & 
             (nemo_data['Distance_m'] >= st.session_state.dist_range[0]) & (nemo_data['Distance_m'] <= st.session_state.dist_range[1]) &
             (nemo_data['Rent'] >= st.session_state.rent_range[0]) & (nemo_data['Rent'] <= st.session_state.rent_range[1]) &
             (nemo_data['Deposit'] >= st.session_state.dep_range[0]) & (nemo_data['Deposit'] <= st.session_state.dep_range[1])
         ].dropna(subset=['Walk_Min'])
+
+        # 전용면적 추가 필터링
+        if selected_area == "33㎡ 이하 (~10평)":
+            n_filtered = n_filtered[n_filtered['Area_m2'] <= 33]
+        elif selected_area == "33-66㎡ (10-20평)":
+            n_filtered = n_filtered[(n_filtered['Area_m2'] > 33) & (n_filtered['Area_m2'] <= 66)]
+        elif selected_area == "66-99㎡ (20-30평)":
+            n_filtered = n_filtered[(n_filtered['Area_m2'] > 66) & (n_filtered['Area_m2'] <= 99)]
+        elif selected_area == "99㎡ 이상 (30평~)":
+            n_filtered = n_filtered[n_filtered['Area_m2'] > 99]
 
         # 매물 KPI 지표 (탭 내부로 이동)
         m_col1, m_col2, m_col3 = st.columns(3)
@@ -406,35 +446,20 @@ try:
             (n_filtered['Is_1F'] == True)
         ].sort_values('Rent')
 
-        col_a, col_b = st.columns([1, 1])
-        
-        with col_a:
-            st.markdown("#### ✨ 핵심 전략 매물 Top 3")
-            if not best_pick.empty:
-                for idx, row in best_pick.head(3).iterrows():
+        st.markdown("#### ✨ 핵심 전략 매물 Top 3")
+        if not best_pick.empty:
+            cols = st.columns(3)
+            for i, (idx, row) in enumerate(best_pick.head(3).iterrows()):
+                with cols[i]:
                     st.success(f"""
-                    **[{idx+1}] {row['category_location']}**  
-                    - **임대료**: 월 {row['Rent']}만 (보증금 {row['Deposit']}만)  
-                    - **거리**: 약 {row['Distance_m']}m (도보 {row['Walk_Min']}분)  
-                    - **설명**: {row['description'][:60]}...
+                    **[{i+1}순위]**  
+                    **{row['category_location']}**  
+                    - **임대료**: {row['Rent']}만 / {row['Deposit']}만  
+                    - **면적**: {row['Area_m2']:.1f}㎡  
+                    - **거리**: {row['Distance_m']}m  
                     """)
-            else:
-                st.info("현재 필터링된 조건(200-350m, 1층)에 부합하는 매물이 없습니다.")
-
-        with col_b:
-            st.markdown("#### 💡 지역별 추천 브랜드 전략")
-            if target_dong == '여의동':
-                st.info("""
-                **브랜드 전략: 프리미엄 & F&B 특화**
-                - 높은 점포당 수익성을 바탕으로 고가 도시락 및 디저트 라인업 강화
-                - **GS25**와 **세븐일레븐**의 경쟁이 치열하므로, 오피스 빌딩 내 폐쇄적 환경보다 오픈된 사거리 코너 입지 우선 확보 권장.
-                """)
-            else:
-                st.info("""
-                **브랜드 전략: 가성비 & 물류 특화**
-                - IT 단지 특성상 야근/조식 수요가 많으므로 간편식 재고 회전율이 높은 브랜드 추천
-                - **CU**가 현재 점유율 1위이나, 경쟁 완화 구역인 역외곽 300m 지점에 **이마트24** 등 신규 브랜드의 '무인 시스템' 병행 매장 입점 시 유리.
-                """)
+        else:
+            st.info("현재 필터링된 조건에 부합하는 매물이 없습니다.")
 
 except Exception as e:
     st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
