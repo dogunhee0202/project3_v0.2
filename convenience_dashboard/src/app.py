@@ -285,26 +285,35 @@ try:
                 mapbox_style="carto-positron"
             )
 
-            # 지하철역 마커 추가 (Trace 추가)
+            # 지하철역 마커 추가 (이모지 기반 시인성 강화)
             if filtered_stations:
                 fig_map.add_trace(go.Scattermapbox(
                     lat=[s['lat'] for s in filtered_stations],
                     lon=[s['lon'] for s in filtered_stations],
-                    mode='markers+text',
-                    marker=go.scattermapbox.Marker(
-                        size=25,
-                        color='black',
-                        symbol='marker' # 핀 아이콘
-                    ),
-                    text=[s['name'] for s in filtered_stations],
+                    mode='text', # 마커 대신 텍스트(이모지 포함)로 시각화
+                    text=[f"🚉 {s['name']}" for s in filtered_stations],
                     textposition='top center',
                     textfont=dict(
-                        size=16,
-                        color='black',
-                        family='Pretendard, Arial Black' # 굵은 폰트 강조
+                        size=18,
+                        color='#ff0000', # 빨간색 강조
+                        family='Pretendard, Arial Black'
                     ),
                     name='지하철역',
                     hoverinfo='text'
+                ))
+                
+                # 역 위치를 점(Dot)으로 한 번 더 강조
+                fig_map.add_trace(go.Scattermapbox(
+                    lat=[s['lat'] for s in filtered_stations],
+                    lon=[s['lon'] for s in filtered_stations],
+                    mode='markers',
+                    marker=go.scattermapbox.Marker(
+                        size=12,
+                        color='#ff0000',
+                        opacity=0.8
+                    ),
+                    showlegend=False,
+                    hoverinfo='none'
                 ))
 
             fig_map.update_layout(
