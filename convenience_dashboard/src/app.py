@@ -285,17 +285,33 @@ try:
                 mapbox_style="carto-positron"
             )
 
-            # 지하철역 마커 추가 (이모지 기반 시인성 강화)
+            # 지하철역 마커 추가 (회색 바탕 텍스트 레이아웃)
             if filtered_stations:
+                # 1. 배경용 회색 상자 레이어
                 fig_map.add_trace(go.Scattermapbox(
                     lat=[s['lat'] for s in filtered_stations],
                     lon=[s['lon'] for s in filtered_stations],
-                    mode='text', # 마커 대신 텍스트(이모지 포함)로 시각화
-                    text=[f"🚉 {s['name']}" for s in filtered_stations],
-                    textposition='top center',
+                    mode='markers',
+                    marker=go.scattermapbox.Marker(
+                        size=34, # 텍스트를 감쌀 정도로 넉넉한 크기
+                        color='lightgrey',
+                        opacity=0.8,
+                        symbol='square' # 사각형 배경
+                    ),
+                    showlegend=False,
+                    hoverinfo='none'
+                ))
+
+                # 2. 검정색 역 이름 텍스트 레이어
+                fig_map.add_trace(go.Scattermapbox(
+                    lat=[s['lat'] for s in filtered_stations],
+                    lon=[s['lon'] for s in filtered_stations],
+                    mode='text',
+                    text=[s['name'] for s in filtered_stations],
+                    textposition='middle center',
                     textfont=dict(
-                        size=18,
-                        color='#ff0000', # 빨간색 강조
+                        size=14,
+                        color='black', # 검정색 글씨
                         family='Pretendard, Arial Black'
                     ),
                     name='지하철역',
