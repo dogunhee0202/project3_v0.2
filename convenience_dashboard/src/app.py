@@ -224,37 +224,24 @@ try:
         c1, c2 = st.columns([3, 2])
         
         with c1:
-            # [수정] 가산 vs 여의 통합 매출 추이 및 선택 지역 강조
-            trend_total = rev_summary.groupby(['Quarter', 'Dong'])['Estimated_Rev_Per_Store_M'].mean().reset_index()
-            trend_total['Quarter_Label'] = trend_total['Quarter'].apply(lambda x: f"{str(x)[:4]}년 {str(x)[4]}분기")
+            # [원복] 단일 지역 매출 추이 그래프
+            trend_df = rev_summary[rev_summary['Dong'] == target_dong].groupby('Quarter')['Estimated_Rev_Per_Store_M'].mean().reset_index()
+            trend_df['Quarter_Label'] = trend_df['Quarter'].apply(lambda x: f"{str(x)[:4]}년 {str(x)[4]}분기")
             
-            fig_trend = px.line(trend_total, x='Quarter_Label', y='Estimated_Rev_Per_Store_M', 
-                                color='Dong', markers=True, 
-                                title="2025년 가산 vs 여의 매출액 추이 비교",
-                                color_discrete_map={'가산동': '#007bff', '여의동': '#ef4444'},
+            fig_trend = px.line(trend_df, x='Quarter_Label', y='Estimated_Rev_Per_Store_M', 
+                                title=f"2025년 {target_dong} 매출액 추이",
+                                markers=True, text='Estimated_Rev_Per_Store_M',
                                 template="plotly_white")
-            
-            # 선택된 지역 강조 (선 굵기 조절)
-            for trace in fig_trend.data:
-                if trace.name == target_dong:
-                    trace.line.width = 5
-                    trace.opacity = 1.0
-                else:
-                    trace.line.width = 2
-                    trace.opacity = 0.4
-            
-            fig_trend.update_layout(xaxis_title="기준 분기", yaxis_title="매출 (백만 원)", legend_title="지역")
+            fig_trend.update_traces(texttemplate='%{text:.1f}M', textposition='top center', line_color='#007bff')
+            fig_trend.update_layout(xaxis_title="기준 분기", yaxis_title="매출 (백만 원)")
             st.plotly_chart(fig_trend, use_container_width=True)
-            st.caption(f"※ 현재 **{target_dong}**의 추이가 강조되어 표시되고 있습니다.")
             
         with c2:
-            # [수정] 브랜드 점유율 도넛 그래프 (시계방향 점유율 순 정렬)
-            brand_share = q_data[['Brand', 'StoreCount']].sort_values('StoreCount', ascending=False)
+            # [원복] 기본 브랜드 점유율 도넛 그래프
+            brand_share = q_data[['Brand', 'StoreCount']]
             fig_pie = px.pie(brand_share, values='StoreCount', names='Brand', 
-                             title="브랜드 점유율 현황 (시계방향 순)",
-                             hole=0.5, 
-                             color_discrete_sequence=px.colors.qualitative.Bold,
-                             sort=False) # 데이터프레임 순서(내림차순) 유지
+                             title="브랜드 점유율 현황",
+                             hole=0.5, color_discrete_sequence=px.colors.qualitative.Bold)
             fig_pie.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -479,36 +466,14 @@ try:
             st.info("선택한 필터 조건에 맞는 매물이 없습니다. 필터를 조정해 주세요.")
 
     with tab3:
-        st.subheader("🏢 가산동 vs 여의동 상권 비교 분석")
-        
-        # 상권 비교 표 데이터
-        compare_data = {
-            "비교 항목": ["주요 고객군", "상권 특성", "매출 피크 타임", "브랜드 경쟁", "추천 전략"],
-            "가산동 (IT/제조 단지)": [
-                "2030 IT 직장인, 1인 가구",
-                "IT 단지 밀집, 가성비 중시",
-                "평일 점심/야근 시간대",
-                "CU 점유율 1위 (실속형 마케팅)",
-                "무인 시스템 병행 및 간편식 강화"
-            ],
-            "여의동 (금융/업무 중심)": [
-                "3040 전문직, 고소득 직장인",
-                "금융가, 대형 오피스, 프리미엄 수요",
-                "평일 전 시간대, 고른 매출 분포",
-                "GS25/세븐일레븐 각축 (프리미엄화)",
-                "F&B 특화 및 고가 디저트 라인업"
-            ]
-        }
-        
-        st.table(pd.DataFrame(compare_data))
-        
-        st.markdown("---")
-        st.subheader("💡 상권별 핵심 인사이트")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.success("**가산동**: 물류와 가성비의 조화가 핵심입니다. 역세권 300m 이외의 '틈새 구역'을 공략하여 고정 임대료를 낮추는 전략이 유리합니다.")
-        with col2:
-            st.info("**여의동**: 입지 프리미엄이 매출로 직결됩니다. 임대료가 높더라도 오피스 빌딩 주 동선에 위치한 명당 확보가 생존의 필수 조건입니다.")
+        st.subheader("🚀 전략적 입점 추천")
+        st.info("임대료 & 입지 분석 탭에서 필터링된 최적의 매물 정보를 실시간으로 확인하실 수 있습니다.")
+        st.markdown("""
+        **입점 성공을 위한 체크리스트:**
+        - [ ] 인근 브랜드 점유율 및 출점 제한 거리 확인
+        - [ ] 지하철역 주 동선 및 유동인구 성격 분석
+        - [ ] 인근 상권의 객단가 및 평일/주말 매출 비율 조사
+        """)
 
 except Exception as e:
     st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
