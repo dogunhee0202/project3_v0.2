@@ -292,11 +292,17 @@ try:
                     lon=[s['lon'] for s in filtered_stations],
                     mode='markers+text',
                     marker=go.scattermapbox.Marker(
-                        size=20,
-                        color='black'
+                        size=25,
+                        color='black',
+                        symbol='marker' # 핀 아이콘
                     ),
                     text=[s['name'] for s in filtered_stations],
                     textposition='top center',
+                    textfont=dict(
+                        size=16,
+                        color='black',
+                        family='Pretendard, Arial Black' # 굵은 폰트 강조
+                    ),
                     name='지하철역',
                     hoverinfo='text'
                 ))
