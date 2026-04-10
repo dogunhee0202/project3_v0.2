@@ -13,6 +13,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# 디버깅: 현재 작업 디렉토리 출력
+# st.write(f"Current Working Directory: {os.getcwd()}")
+
 # 커스텀 CSS (Premium Look)
 st.markdown("""
 <style>
@@ -95,7 +98,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     # 1. 매출 요약 데이터
-    rev_summary = pd.read_csv("revenue_analysis_summary.csv")
+    rev_summary = pd.read_csv("13. revenue_analysis_summary.csv")
     
     # 2. 브랜드 점포 데이터
     branded_stores = pd.read_csv("7. branded_Convenience_Store.csv")
@@ -257,6 +260,17 @@ try:
                 map_df['Opacity'] = 0.8
                 highlight_colors = brand_colors_base
 
+            # 지하철역 데이터 정의
+            stations = [
+                {'name': '가산디지털단지역', 'lat': 37.4807, 'lon': 126.8842, 'dong': '가산동'},
+                {'name': '여의도역', 'lat': 37.5216, 'lon': 126.9243, 'dong': '여의동'},
+                {'name': '여의나루역', 'lat': 37.5271, 'lon': 126.9328, 'dong': '여의동'},
+                {'name': '국회의사당역', 'lat': 37.5281, 'lon': 126.9179, 'dong': '여의동'}
+            ]
+            
+            # 현재 동에 해당하는 역 필터링
+            filtered_stations = [s for s in stations if s['dong'] == target_dong]
+
             fig_map = px.scatter_mapbox(
                 map_df, 
                 lat="위도", lon="경도", 
@@ -270,6 +284,23 @@ try:
                 size_max=15,
                 mapbox_style="carto-positron"
             )
+
+            # 지하철역 마커 추가 (Trace 추가)
+            if filtered_stations:
+                fig_map.add_trace(go.Scattermapbox(
+                    lat=[s['lat'] for s in filtered_stations],
+                    lon=[s['lon'] for s in filtered_stations],
+                    mode='markers+text',
+                    marker=go.scattermapbox.Marker(
+                        size=20,
+                        color='black'
+                    ),
+                    text=[s['name'] for s in filtered_stations],
+                    textposition='top center',
+                    name='지하철역',
+                    hoverinfo='text'
+                ))
+
             fig_map.update_layout(
                 margin={"r":0,"t":0,"l":0,"b":0},
                 showlegend=True,
