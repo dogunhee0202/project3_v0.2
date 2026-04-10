@@ -193,8 +193,8 @@ try:
     tab1, tab2, tab3 = st.tabs(["📊 편의점 현황", "📍 임대료 & 입지 분석", "💡 추천 입점 전략"])
 
     with tab1:
-        # [신규] 지역별 추천 브랜드 전략 (tab3에서 최상단으로 이동)
-        st.subheader("💡 지역별 추천 브랜드 전략")
+        # [수정] 지역명과 연동된 전략 제목 표시
+        st.subheader(f"💡 {target_dong} 편의점 입점 전략")
         if target_dong == '여의동':
             st.info("""
             **브랜드 전략: 프리미엄 & F&B 특화**
@@ -369,8 +369,6 @@ try:
             st.warning(f"{target_dong}에 대한 편의점 위치 데이터가 없습니다.")
 
     with tab2:
-        st.subheader("💰 임대 시세 및 입지 분석")
-        
         # 필터 레이아웃
         st.markdown("### 🔍 필터")
         f_col1, f_col2, f_col3, f_col4 = st.columns(4)
@@ -386,13 +384,15 @@ try:
             area_options = ["전체", "33㎡ 이하 (~10평)", "33-66㎡ (10-20평)", "66-99㎡ (20-30평)", "99㎡ 이상 (30평~)"]
             selected_area = st.selectbox("전용면적", options=area_options)
 
+        st.markdown("---") # 필터 밑에 회색 바 추가
+
         # 데이터 필터링 로직 강화
         n_filtered = nemo_data[
             (nemo_data['District'] == target_dong) & 
             (nemo_data['Distance_m'] >= st.session_state.dist_range[0]) & (nemo_data['Distance_m'] <= st.session_state.dist_range[1]) &
             (nemo_data['Rent'] >= st.session_state.rent_range[0]) & (nemo_data['Rent'] <= st.session_state.rent_range[1]) &
             (nemo_data['Deposit'] >= st.session_state.dep_range[0]) & (nemo_data['Deposit'] <= st.session_state.dep_range[1])
-        ].dropna(subset=['Walk_Min'])
+        ].dropna(subset=['Walk_Min']).copy()
 
         # 전용면적 추가 필터링
         if selected_area == "33㎡ 이하 (~10평)":
@@ -404,7 +404,7 @@ try:
         elif selected_area == "99㎡ 이상 (30평~)":
             n_filtered = n_filtered[n_filtered['Area_m2'] > 99]
 
-        # 매물 KPI 지표 (탭 내부로 이동)
+        # 매물 KPI 지표 (필터 밑으로 이동)
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
             st.metric("매물 개수", f"{len(n_filtered)}개", help="선택된 필터 조건에 맞는 매물 수")
@@ -417,11 +417,14 @@ try:
         
         st.markdown("---")
 
+        # [수정] 그래프 제목 스타일 통일 및 아이콘 추가
+        st.subheader("📈 역과의 거리 VS. 월세 분포")
+        
         # 산점도 시각화
         if not n_filtered.empty:
             fig_scatter = px.scatter(n_filtered, x='Distance_m', y='Rent', 
                                      color='Is_1F', size='Deposit', hover_name='description',
-                                     title="역과의 거리 vs 월세 분포",
+                                     # title 제거 (st.subheader로 대체)
                                      labels={'Distance_m': '역과의 거리 (m)', 'Rent': '월세 (만 원)', 'Is_1F': '1층 여부'},
                                      color_discrete_map={True: '#ef4444', False: '#64748b'},
                                      template="plotly_white")
@@ -430,9 +433,33 @@ try:
             fig_scatter.add_vrect(x0=200, x1=300, fillcolor="#22c55e", opacity=0.1, 
                                   annotation_text="🎯 최적 입지", annotation_position="top left")
             
+            fig_scatter.update_layout(title=None) # 차트 내부 제목 제거
             st.plotly_chart(fig_scatter, use_container_width=True)
             st.caption("※ 보증금 크기에 따라 원의 크기가 결정됩니다. 붉은색 점은 접근성이 높은 1층 매물입니다.")
 
+            st.markdown("---")
+            
+            # [이동] 핵심 전략 매물 Top 3 (tab3에서 tab2 그래프 하단으로 이동)
+            st.subheader("✨ 핵심 전략 매물 Top 3")
+            best_pick = n_filtered[
+                (n_filtered['Is_1F'] == True)
+            ].sort_values('Rent')
+
+            if not best_pick.empty:
+                cols = st.columns(3)
+                for i, (idx, row) in enumerate(best_pick.head(3).iterrows()):
+                    with cols[i]:
+                        st.success(f"""
+                        **[{i+1}순위]**  
+                        **{row['category_location']}**  
+                        - **임대료**: {row['Rent']}만 / {row['Deposit']}만  
+                        - **면적**: {row['Area_m2']:.1f}㎡  
+                        - **거리**: {row['Distance_m']}m  
+                        """)
+            else:
+                st.info("현재 필터링된 조건에 부합하는 매물이 없습니다.")
+
+            st.markdown("---")
             st.markdown(f"### 📋 주요 매물 리스트 ({st.session_state.dist_range[0]}m ~ {st.session_state.dist_range[1]}m 이내)")
             st.dataframe(n_filtered.sort_values('Distance_m')[['category_location', 'price', 'area_floor', 'description']].reset_index(drop=True), use_container_width=True)
         else:
@@ -440,26 +467,13 @@ try:
 
     with tab3:
         st.subheader("🚀 전략적 입점 추천")
-        
-        # 추천 매물 선정 (선택된 거리 범위 내 1층 매물 중 저렴한 순)
-        best_pick = n_filtered[
-            (n_filtered['Is_1F'] == True)
-        ].sort_values('Rent')
-
-        st.markdown("#### ✨ 핵심 전략 매물 Top 3")
-        if not best_pick.empty:
-            cols = st.columns(3)
-            for i, (idx, row) in enumerate(best_pick.head(3).iterrows()):
-                with cols[i]:
-                    st.success(f"""
-                    **[{i+1}순위]**  
-                    **{row['category_location']}**  
-                    - **임대료**: {row['Rent']}만 / {row['Deposit']}만  
-                    - **면적**: {row['Area_m2']:.1f}㎡  
-                    - **거리**: {row['Distance_m']}m  
-                    """)
-        else:
-            st.info("현재 필터링된 조건에 부합하는 매물이 없습니다.")
+        st.info("임대료 & 입지 분석 탭에서 필터링된 최적의 매물 정보를 실시간으로 확인하실 수 있습니다.")
+        st.markdown("""
+        **입점 성공을 위한 체크리스트:**
+        - [ ] 인근 브랜드 점유율 및 출점 제한 거리 확인
+        - [ ] 지하철역 주 동선 및 유동인구 성격 분석
+        - [ ] 인근 상권의 객단가 및 평일/주말 매출 비율 조사
+        """)
 
 except Exception as e:
     st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
