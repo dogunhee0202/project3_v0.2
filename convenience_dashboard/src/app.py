@@ -155,32 +155,7 @@ try:
     st.sidebar.header("📍 분석 지역")
     target_dong = st.sidebar.selectbox("지역을 선택하세요", ["가산동", "여의동"])
 
-    st.sidebar.markdown("---")
-    st.sidebar.header("📏 역과의 거리")
-    dist_range = st.sidebar.slider(
-        "반경 선택 (m)", 
-        0, 1000, (0, 500), 
-        step=50,
-        help="지하철역으로부터 떨어진 실제 보행 거리 범위를 선택하세요."
-    )
-
-    # 매물 데이터 필터링 (필터 변수 정의 후 수행)
-    n_filtered = nemo_data[
-        (nemo_data['District'] == target_dong) & 
-        (nemo_data['Distance_m'] >= dist_range[0]) & 
-        (nemo_data['Distance_m'] <= dist_range[1])
-    ].dropna(subset=['Walk_Min'])
-
-    # 상단 매물 지표 추가
-    m_col1, m_col2, m_col3 = st.columns(3)
-    with m_col1:
-        st.metric("매물 개수", f"{len(n_filtered)}개", help="선택된 필터 조건에 맞는 부동산 매물 수")
-    with m_col2:
-        avg_rent = n_filtered['Rent'].mean() if not n_filtered.empty else 0
-        st.metric("평균 월세", f"{avg_rent:.1f} 만", help="필터링된 매물의 평균 월세")
-    with m_col3:
-        avg_deposit = n_filtered['Deposit'].mean() if not n_filtered.empty else 0
-        st.metric("평균 보증금", f"{avg_deposit:.0f} 만", help="필터링된 매물의 평균 보증금")
+    # 상권 지표 데이터 계산 (기존 위치 유지)
 
     # 상권 지표 데이터 계산
     district_rev = rev_summary[rev_summary['Dong'] == target_dong]
@@ -194,6 +169,12 @@ try:
         avg_rev_per_store, total_stores = 0, 0
 
     st.markdown("---")
+
+    # [수정] 탭 간 데이터 공유를 위해 필터 기본값 및 데이터 필터링 사전 수행
+    # 위젯은 tab2에 배치하지만, 변수는 여기서 초기화하여 tab3 등에서도 에러 없이 사용 가능하게 함
+    if 'dist_range' not in st.session_state: st.session_state.dist_range = (0, 500)
+    if 'rent_range' not in st.session_state: st.session_state.rent_range = (0, int(nemo_data['Rent'].max()))
+    if 'dep_range' not in st.session_state: st.session_state.dep_range = (0, int(nemo_data['Deposit'].max()))
 
     # 탭 구성
     tab1, tab2, tab3 = st.tabs(["📊 편의점 현황", "📍 임대료 & 입지 분석", "💡 추천 입점 전략"])
@@ -227,7 +208,7 @@ try:
             st.plotly_chart(fig_trend, use_container_width=True)
             
         with c2:
-            # 브랜드 점유율
+            # 브랜드 점유율 도넛 그래프
             brand_share = q_data[['Brand', 'StoreCount']]
             fig_pie = px.pie(brand_share, values='StoreCount', names='Brand', 
                              title="브랜드 점유율 현황",
@@ -237,10 +218,18 @@ try:
 
         st.markdown("---")
         st.subheader("🗺️ 지역별 편의점 분포 지도")
-        st.markdown("브랜드별로 편의점 위치를 확인할 수 있습니다.")
+        
+        # 브랜드 선택 필터 (지도 강조용)
+        all_brands = sorted(branded_stores['Brand'].unique().tolist())
+        selected_brands = st.multiselect(
+            "강조할 브랜드를 선택하세요 (미선택 시 전체 표시)", 
+            options=all_brands,
+            default=[],
+            help="선택한 브랜드의 마커가 강조되어 표시됩니다."
+        )
 
         # 브랜드 색상 매핑
-        brand_colors = {
+        brand_colors_base = {
             'GS25': '#00B0F0',      # 하늘색
             'CU': '#744199',        # 보라색
             '세븐일레븐': '#008000',   # 초록색
@@ -249,80 +238,103 @@ try:
             '기타': '#808080'         # 회색
         }
 
-        # 역 좌표 정의
-        station_coords = {
-            '가산디지털단지역': {'lat': 37.4812, 'lon': 126.8827},
-            '여의도역': {'lat': 37.5216, 'lon': 126.9242}
-        }
-
-        map_col1, map_col2 = st.columns(2)
-
-        with map_col1:
-            st.markdown("#### 🚉 가산디지털단지역 주변")
-            gasan_stores = branded_stores[branded_stores['행정동명'] == '가산동']
-            if not gasan_stores.empty:
-                fig_gasan = px.scatter_mapbox(
-                    gasan_stores, 
-                    lat="위도", lon="경도", 
-                    color="Brand",
-                    hover_name="상호명",
-                    color_discrete_map=brand_colors,
-                    zoom=14,
-                    height=450,
-                    mapbox_style="carto-positron"
-                )
-                fig_gasan.update_layout(
-                    margin={"r":0,"t":0,"l":0,"b":0},
-                    showlegend=True,
-                    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
-                )
-                st.plotly_chart(fig_gasan, use_container_width=True)
+        # 강조 로직 적용 데이터 준비
+        map_df = branded_stores[branded_stores['행정동명'] == target_dong].copy()
+        
+        if not map_df.empty:
+            # 강조 조건 설정
+            if selected_brands:
+                map_df['Highlight'] = map_df['Brand'].apply(lambda x: x if x in selected_brands else '기타(흐림)')
+                map_df['MarkerSize'] = map_df['Brand'].apply(lambda x: 15 if x in selected_brands else 7)
+                map_df['Opacity'] = map_df['Brand'].apply(lambda x: 1.0 if x in selected_brands else 0.3)
+                
+                # 색상 매핑 확장
+                highlight_colors = {k: v for k, v in brand_colors_base.items()}
+                highlight_colors['기타(흐림)'] = '#e2e8f0' # 매우 연한 회색
             else:
-                st.info("가산동 편의점 데이터가 없습니다.")
+                map_df['Highlight'] = map_df['Brand']
+                map_df['MarkerSize'] = 10
+                map_df['Opacity'] = 0.8
+                highlight_colors = brand_colors_base
 
-        with map_col2:
-            st.markdown("#### 🚉 여의도역 주변")
-            yeui_stores = branded_stores[branded_stores['행정동명'] == '여의동']
-            if not yeui_stores.empty:
-                fig_yeui = px.scatter_mapbox(
-                    yeui_stores, 
-                    lat="위도", lon="경도", 
-                    color="Brand",
-                    hover_name="상호명",
-                    color_discrete_map=brand_colors,
-                    zoom=14,
-                    height=450,
-                    mapbox_style="carto-positron"
-                )
-                fig_yeui.update_layout(
-                    margin={"r":0,"t":0,"l":0,"b":0},
-                    showlegend=True,
-                    legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
-                )
-                st.plotly_chart(fig_yeui, use_container_width=True)
-            else:
-                st.info("여의동 편의점 데이터가 없습니다.")
+            fig_map = px.scatter_mapbox(
+                map_df, 
+                lat="위도", lon="경도", 
+                color="Highlight",
+                hover_name="상호명",
+                hover_data={"Highlight": False, "위도": False, "경도": False, "Brand": True},
+                color_discrete_map=highlight_colors,
+                zoom=14,
+                height=600,
+                size="MarkerSize",
+                size_max=15,
+                mapbox_style="carto-positron"
+            )
+            fig_map.update_layout(
+                margin={"r":0,"t":0,"l":0,"b":0},
+                showlegend=True,
+                legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)")
+            )
+            st.plotly_chart(fig_map, use_container_width=True)
+            st.info(f"💡 현재 **{target_dong}**의 편의점 분포를 보여주고 있습니다. {'브랜드를 선택하여 특정 점포를 강조해 보세요.' if not selected_brands else f'{', '.join(selected_brands)} 브랜드가 강조되었습니다.'}")
+        else:
+            st.warning(f"{target_dong}에 대한 편의점 위치 데이터가 없습니다.")
 
     with tab2:
-        st.subheader("💰 임대 시세 및 거리 분석")
+        st.subheader("💰 임대 시세 및 입지 분석")
         
-        # 산점도 시각화
-        fig_scatter = px.scatter(n_filtered, x='Distance_m', y='Rent', 
-                                 color='Is_1F', size='Deposit', hover_name='description',
-                                 title="역과의 거리 vs 월세 분포",
-                                 labels={'Distance_m': '역과의 거리 (m)', 'Rent': '월세 (만 원)', 'Is_1F': '1층 여부'},
-                                 color_discrete_map={True: '#ef4444', False: '#64748b'},
-                                 template="plotly_white")
-        
-        # 가이드 영역 (200-300m)
-        fig_scatter.add_vrect(x0=200, x1=300, fillcolor="#22c55e", opacity=0.1, 
-                              annotation_text="🎯 최적 입지", annotation_position="top left")
-        
-        st.plotly_chart(fig_scatter, use_container_width=True)
-        st.caption("※ 보증금 크기에 따라 원의 크기가 결정됩니다. 붉은색 점은 접근성이 높은 1층 매물입니다.")
+        # 필터 레이아웃
+        f_col1, f_col2, f_col3 = st.columns(3)
+        with f_col1:
+            st.session_state.dist_range = st.slider("역과의 거리 (m)", 0, 1000, st.session_state.dist_range, step=50)
+        with f_col2:
+            max_rent = int(nemo_data['Rent'].max())
+            st.session_state.rent_range = st.slider("월세 범위 (만 원)", 0, max_rent, st.session_state.rent_range, step=10)
+        with f_col3:
+            max_dep = int(nemo_data['Deposit'].max())
+            st.session_state.dep_range = st.slider("보증금 범위 (만 원)", 0, max_dep, st.session_state.dep_range, step=500)
 
-        st.markdown(f"### 📋 주요 매물 리스트 ({dist_range[0]}m ~ {dist_range[1]}m 이내)")
-        st.dataframe(n_filtered.sort_values('Distance_m')[['category_location', 'price', 'area_floor', 'description']].reset_index(drop=True), use_container_width=True)
+        # 데이터 필터링
+        n_filtered = nemo_data[
+            (nemo_data['District'] == target_dong) & 
+            (nemo_data['Distance_m'] >= st.session_state.dist_range[0]) & (nemo_data['Distance_m'] <= st.session_state.dist_range[1]) &
+            (nemo_data['Rent'] >= st.session_state.rent_range[0]) & (nemo_data['Rent'] <= st.session_state.rent_range[1]) &
+            (nemo_data['Deposit'] >= st.session_state.dep_range[0]) & (nemo_data['Deposit'] <= st.session_state.dep_range[1])
+        ].dropna(subset=['Walk_Min'])
+
+        # 매물 KPI 지표 (탭 내부로 이동)
+        m_col1, m_col2, m_col3 = st.columns(3)
+        with m_col1:
+            st.metric("매물 개수", f"{len(n_filtered)}개", help="선택된 필터 조건에 맞는 매물 수")
+        with m_col2:
+            avg_rent = n_filtered['Rent'].mean() if not n_filtered.empty else 0
+            st.metric("평균 월세", f"{avg_rent:.1f} 만", help="필터링된 매물의 평균 월세")
+        with m_col3:
+            avg_deposit = n_filtered['Deposit'].mean() if not n_filtered.empty else 0
+            st.metric("평균 보증금", f"{avg_deposit:.0f} 만", help="필터링된 매물의 평균 보증금")
+        
+        st.markdown("---")
+
+        # 산점도 시각화
+        if not n_filtered.empty:
+            fig_scatter = px.scatter(n_filtered, x='Distance_m', y='Rent', 
+                                     color='Is_1F', size='Deposit', hover_name='description',
+                                     title="역과의 거리 vs 월세 분포",
+                                     labels={'Distance_m': '역과의 거리 (m)', 'Rent': '월세 (만 원)', 'Is_1F': '1층 여부'},
+                                     color_discrete_map={True: '#ef4444', False: '#64748b'},
+                                     template="plotly_white")
+            
+            # 가이드 영역 (200-300m)
+            fig_scatter.add_vrect(x0=200, x1=300, fillcolor="#22c55e", opacity=0.1, 
+                                  annotation_text="🎯 최적 입지", annotation_position="top left")
+            
+            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.caption("※ 보증금 크기에 따라 원의 크기가 결정됩니다. 붉은색 점은 접근성이 높은 1층 매물입니다.")
+
+            st.markdown(f"### 📋 주요 매물 리스트 ({st.session_state.dist_range[0]}m ~ {st.session_state.dist_range[1]}m 이내)")
+            st.dataframe(n_filtered.sort_values('Distance_m')[['category_location', 'price', 'area_floor', 'description']].reset_index(drop=True), use_container_width=True)
+        else:
+            st.info("선택한 필터 조건에 맞는 매물이 없습니다. 필터를 조정해 주세요.")
 
     with tab3:
         st.subheader("🚀 전략적 입점 추천")
