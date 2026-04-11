@@ -539,11 +539,11 @@ try:
             st.markdown("#### 🕒 편의점 시간대별 매출 패턴")
             rev_sum_path_cvs = "17. cvs_revenue_pattern.csv"
             if os.path.exists(rev_sum_path_cvs):
-                # 인코딩 명시 (utf-8-sig)
-                rev_summary = pd.read_csv(rev_sum_path_cvs, index_col=0, encoding='utf-8-sig')
+                # 인코딩 명시 (utf-8-sig) 및 변수명 충돌 방지
+                rev_summary_cvs = pd.read_csv(rev_sum_path_cvs, index_col=0, encoding='utf-8-sig')
                 # 데이터 재구조화
-                rev_plot_df = rev_summary.T.reset_index()
-                rev_plot_df.columns = ['시간대'] + rev_summary.index.tolist()
+                rev_plot_df = rev_summary_cvs.T.reset_index()
+                rev_plot_df.columns = ['시간대'] + rev_summary_cvs.index.tolist()
                 rev_plot_df = rev_plot_df.melt(id_vars='시간대', var_name='행정동', value_name='매출금액')
                 
                 fig_rev = px.line(rev_plot_df, x='시간대', y='매출금액', color='행정동', markers=True,
@@ -554,24 +554,6 @@ try:
                 st.plotly_chart(fig_rev, use_container_width=True)
             else:
                 st.info("편의점 매출 분석 데이터가 없습니다.")
-
-        st.markdown("---")
-        st.subheader("📈 분기별 매출액 추이 비교 (가산 vs 여의)")
-        
-        # 필터 독립적으로 가산동, 여의동 데이터 모두 추출
-        trend_compare_df = rev_summary[rev_summary['Dong'].isin(["가산동", "여의동"])].copy()
-        # 분기/지역별 평균 매출 계산
-        trend_compare_df = trend_compare_df.groupby(['Quarter', 'Dong'])['Estimated_Rev_Per_Store_M'].mean().reset_index()
-        trend_compare_df['Quarter_Label'] = trend_compare_df['Quarter'].apply(lambda x: f"{str(x)[:4]}년 {str(x)[4]}분기")
-        
-        fig_trend_comp = px.line(trend_compare_df, x='Quarter_Label', y='Estimated_Rev_Per_Store_M', color='Dong',
-                                title="2025년 가산동 vs. 여의동 분기별 매출 추이",
-                                markers=True, text='Estimated_Rev_Per_Store_M',
-                                template="plotly_white",
-                                color_discrete_sequence=['#3b82f6', '#10b981'])
-        fig_trend_comp.update_traces(texttemplate='%{text:.1f}M', textposition='top center')
-        fig_trend_comp.update_layout(xaxis_title="기준 분기", yaxis_title="평균 매출 (백만 원)", height=500)
-        st.plotly_chart(fig_trend_comp, use_container_width=True)
 
         st.markdown("---")
         
