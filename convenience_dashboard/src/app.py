@@ -498,25 +498,34 @@ try:
         with col_eda1:
             st.markdown("#### 👥 전 연령대 생활인구 비교")
             if os.path.exists(fp_sum_path):
-                fp_summary = pd.read_csv(fp_sum_path)
-                # 전 연령대 컬럼 정의 (EDA 스크립트와 동일)
-                age_buckets = ['10세 미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대 이상']
-                # 데이터 재구조화 (Melt)
-                plot_df = fp_summary.melt(id_vars='DongName', value_vars=age_buckets, 
-                                        var_name='연령대', value_name='인구수')
+                # 인코딩 명시 (utf-8-sig)
+                fp_summary = pd.read_csv(fp_sum_path, encoding='utf-8-sig')
                 
-                fig_age = px.bar(plot_df, x='연령대', y='인구수', color='DongName', barmode='group',
-                                labels={'DongName': '행정동', '인구수': '평균 생활인구'},
-                                color_discrete_sequence=['#3b82f6', '#f59e0b'])
-                fig_age.update_layout(height=400)
-                st.plotly_chart(fig_age, use_container_width=True)
+                # 컬럼 존재 확인 후 시각화
+                age_buckets = ['10세 미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대 이상']
+                available_buckets = [col for col in age_buckets if col in fp_summary.columns]
+                
+                if available_buckets:
+                    # 데이터 재구조화 (Melt)
+                    plot_df = fp_summary.melt(id_vars='DongName', value_vars=available_buckets, 
+                                            var_name='연령대', value_name='인구수')
+                    
+                    fig_age = px.bar(plot_df, x='연령대', y='인구수', color='DongName', barmode='group',
+                                    labels={'DongName': '행정동', '인구수': '평균 생활인구'},
+                                    color_discrete_sequence=['#3b82f6', '#f59e0b'],
+                                    template="plotly_white")
+                    fig_age.update_layout(height=400, margin=dict(l=20, r=20, t=20, b=20))
+                    st.plotly_chart(fig_age, use_container_width=True)
+                else:
+                    st.error(f"연령대 데이터를 찾을 수 없습니다. 컬럼명: {fp_summary.columns.tolist()}")
             else:
                 st.info("생활인구 분석 데이터가 없습니다.")
                 
         with col_eda2:
             st.markdown("#### 🕒 시간대별 매출 패턴 비교")
             if os.path.exists(rev_sum_path):
-                rev_summary = pd.read_csv(rev_sum_path, index_col=0)
+                # 인코딩 명시 (utf-8-sig)
+                rev_summary = pd.read_csv(rev_sum_path, index_col=0, encoding='utf-8-sig')
                 # 데이터 재구조화
                 rev_plot_df = rev_summary.T.reset_index()
                 rev_plot_df.columns = ['시간대'] + rev_summary.index.tolist()
