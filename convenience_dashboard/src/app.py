@@ -190,7 +190,7 @@ try:
     if 'dep_range' not in st.session_state: st.session_state.dep_range = (0, int(nemo_data['Deposit'].max()))
 
     # 탭 구성
-    tab1, tab2, tab3 = st.tabs(["📊 편의점 현황", "📍 임대료 & 입지 분석", "가산동 vs. 여의동 상권 비교"])
+    tab1, tab2, tab3 = st.tabs(["📊 편의점 현황", "📍 임대료 & 입지 분석", "⚖️ 가산동 vs. 여의동 상권 비교"])
 
     with tab1:
         # [수정] 지역명과 연동된 전략 제목 표시
@@ -486,19 +486,17 @@ try:
 
         # 분석 리포트 요약 데이터
         compare_data = {
-            "비교 항목": ["주요 고객군 (평균)", "상권 핵심 업종", "매출 피크 시간", "최대 매출 금액 (분기/평균)", "핵심 입점 전략"],
+            "비교 항목": ["주요 고객군 (평균)", "상권 핵심 업종", "매출 피크 시간", "핵심 입점 전략"],
             "가산동 (IT/직장인 상권)": [
                 "2030세대 (약 2.7만명)",
                 "IT 본사, 경영컨설팅, 광고",
                 f"{gasan_peak_time} (퇴근/저녁 집중)",
-                gasan_peak_val,
                 "무인 병행 매장 및 간편식 특화"
             ],
             "여의동 (금융/프리미엄 상권)": [
                 "3040세대 (약 4.3만명)",
                 "금융, 사무직 지원 서비스, 카페",
                 f"{yeoui_peak_time} (저녁/Commute 피크)",
-                yeoui_peak_val,
                 "프리미엄 도시락 및 디저트 라인업"
             ]
         }
@@ -538,7 +536,7 @@ try:
                 st.info("생활인구 분석 데이터가 없습니다.")
                 
         with col_eda2:
-            st.markdown("#### 🕒 [전용 분석] 편의점 시간대별 매출 패턴")
+            st.markdown("#### 🕒 편의점 시간대별 매출 패턴")
             rev_sum_path_cvs = "17. cvs_revenue_pattern.csv"
             if os.path.exists(rev_sum_path_cvs):
                 # 인코딩 명시 (utf-8-sig)
@@ -556,6 +554,24 @@ try:
                 st.plotly_chart(fig_rev, use_container_width=True)
             else:
                 st.info("편의점 매출 분석 데이터가 없습니다.")
+
+        st.markdown("---")
+        st.subheader("📈 분기별 매출액 추이 비교 (가산 vs 여의)")
+        
+        # 필터 독립적으로 가산동, 여의동 데이터 모두 추출
+        trend_compare_df = rev_summary[rev_summary['Dong'].isin(["가산동", "여의동"])].copy()
+        # 분기/지역별 평균 매출 계산
+        trend_compare_df = trend_compare_df.groupby(['Quarter', 'Dong'])['Estimated_Rev_Per_Store_M'].mean().reset_index()
+        trend_compare_df['Quarter_Label'] = trend_compare_df['Quarter'].apply(lambda x: f"{str(x)[:4]}년 {str(x)[4]}분기")
+        
+        fig_trend_comp = px.line(trend_compare_df, x='Quarter_Label', y='Estimated_Rev_Per_Store_M', color='Dong',
+                                title="2025년 가산동 vs. 여의동 분기별 매출 추이",
+                                markers=True, text='Estimated_Rev_Per_Store_M',
+                                template="plotly_white",
+                                color_discrete_sequence=['#3b82f6', '#10b981'])
+        fig_trend_comp.update_traces(texttemplate='%{text:.1f}M', textposition='top center')
+        fig_trend_comp.update_layout(xaxis_title="기준 분기", yaxis_title="평균 매출 (백만 원)", height=500)
+        st.plotly_chart(fig_trend_comp, use_container_width=True)
 
         st.markdown("---")
         
