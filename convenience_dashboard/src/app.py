@@ -190,7 +190,7 @@ try:
     if 'dep_range' not in st.session_state: st.session_state.dep_range = (0, int(nemo_data['Deposit'].max()))
 
     # 탭 구성
-    tab1, tab2, tab3 = st.tabs(["📊 편의점 현황", "📍 임대료 & 입지 분석", "💡 추천 입점 전략"])
+    tab1, tab2, tab3 = st.tabs(["📊 편의점 현황", "📍 임대료 & 입지 분석", "가산동 vs. 여의동 상권 비교"])
 
     with tab1:
         # [수정] 지역명과 연동된 전략 제목 표시
@@ -468,21 +468,37 @@ try:
     with tab3:
         st.subheader("🏢 데이터 기반 가산동 vs 여의동 상권 비교")
         
+        # 데이터 기반 비교 수치 (최신 CSV 로드)
+        rev_sum_path_cvs = "17. cvs_revenue_pattern.csv"
+        gasan_peak_time, gasan_peak_val = "11~14시", "약 43.7억"
+        yeoui_peak_time, yeoui_peak_val = "17~21시", "약 49.1억"
+        
+        if os.path.exists(rev_sum_path_cvs):
+            rev_df_cvs = pd.read_csv(rev_sum_path_cvs, index_col=0, encoding='utf-8-sig')
+            if "가산동" in rev_df_cvs.index:
+                g_row = rev_df_cvs.loc["가산동"]
+                gasan_peak_time = g_row.idxmax()
+                gasan_peak_val = f"약 {g_row.max()/100000000:.1f}억 원"
+            if "여의동" in rev_df_cvs.index:
+                y_row = rev_df_cvs.loc["여의동"]
+                yeoui_peak_time = y_row.idxmax()
+                yeoui_peak_val = f"약 {y_row.max()/100000000:.1f}억 원"
+
         # 분석 리포트 요약 데이터
         compare_data = {
-            "비교 항목": ["주요 고객군 (평균)", "상권 핵심 업종", "매출 피크 시간", "시간당 평균 매출", "핵심 입점 전략"],
+            "비교 항목": ["주요 고객군 (평균)", "상권 핵심 업종", "매출 피크 시간", "최대 매출 금액 (분기/평균)", "핵심 입점 전략"],
             "가산동 (IT/직장인 상권)": [
                 "2030세대 (약 2.7만명)",
                 "IT 본사, 경영컨설팅, 광고",
-                "11~14시 (점심 집중형)",
-                "약 43.7억 원 (11~14시)",
+                f"{gasan_peak_time} (퇴근/저녁 집중)",
+                gasan_peak_val,
                 "무인 병행 매장 및 간편식 특화"
             ],
             "여의동 (금융/프리미엄 상권)": [
                 "3040세대 (약 4.3만명)",
                 "금융, 사무직 지원 서비스, 카페",
-                "일과 시간 전반 (고른 분포)",
-                "약 24.2억 원 (11~14시)",
+                f"{yeoui_peak_time} (저녁/Commute 피크)",
+                yeoui_peak_val,
                 "프리미엄 도시락 및 디저트 라인업"
             ]
         }
