@@ -490,19 +490,42 @@ try:
         st.table(pd.DataFrame(compare_data))
         
         col_eda1, col_eda2 = st.columns(2)
+        
+        # 요약 데이터 로드
+        fp_sum_path = "fp_summary.csv"
+        rev_sum_path = "rev_time_summary.csv"
+        
         with col_eda1:
-            st.markdown("#### 👥 연령대별 인구 분포")
-            if os.path.exists("convenience_dashboard/images/eda/age_distribution.png"):
-                st.image("convenience_dashboard/images/eda/age_distribution.png", use_container_width=True)
+            st.markdown("#### 👥 연령대별 생활인구 비교")
+            if os.path.exists(fp_sum_path):
+                fp_summary = pd.read_csv(fp_sum_path)
+                # 데이터 재구조화 (Melt)
+                plot_df = fp_summary.melt(id_vars='DongName', value_vars=['Age_2039', 'Age_3049'], 
+                                        var_name='연령대', value_name='인구수')
+                fig_age = px.bar(plot_df, x='DongName', y='인구수', color='연령대', barmode='group',
+                                labels={'DongName': '행정동', '인구수': '평균 생활인구'},
+                                color_discrete_sequence=['#3b82f6', '#f59e0b'])
+                fig_age.update_layout(legend_title_text='연령대', height=400)
+                st.plotly_chart(fig_age, use_container_width=True)
             else:
-                st.info("EDA 데이터를 생성 중입니다.")
+                st.info("생활인구 분석 데이터가 없습니다.")
                 
         with col_eda2:
-            st.markdown("#### 🕒 시간대별 매출 패턴")
-            if os.path.exists("convenience_dashboard/images/eda/hourly_revenue.png"):
-                st.image("convenience_dashboard/images/eda/hourly_revenue.png", use_container_width=True)
+            st.markdown("#### 🕒 시간대별 매출 패턴 비교")
+            if os.path.exists(rev_sum_path):
+                rev_summary = pd.read_csv(rev_sum_path, index_col=0)
+                # 데이터 재구조화
+                rev_plot_df = rev_summary.T.reset_index()
+                rev_plot_df.columns = ['시간대'] + rev_summary.index.tolist()
+                rev_plot_df = rev_plot_df.melt(id_vars='시간대', var_name='행정동', value_name='매출금액')
+                
+                fig_rev = px.line(rev_plot_df, x='시간대', y='매출금액', color='행정동', markers=True,
+                                labels={'매출금액': '평균 매출액'},
+                                color_discrete_sequence=['#ef4444', '#10b981'])
+                fig_rev.update_layout(height=400)
+                st.plotly_chart(fig_rev, use_container_width=True)
             else:
-                st.info("EDA 데이터를 생성 중입니다.")
+                st.info("매출 분석 데이터가 없습니다.")
 
         st.markdown("---")
         
