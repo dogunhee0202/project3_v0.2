@@ -496,16 +496,19 @@ try:
         rev_sum_path = "16. rev_time_summary.csv"
         
         with col_eda1:
-            st.markdown("#### 👥 연령대별 생활인구 비교")
+            st.markdown("#### 👥 전 연령대 생활인구 비교")
             if os.path.exists(fp_sum_path):
                 fp_summary = pd.read_csv(fp_sum_path)
+                # 전 연령대 컬럼 정의 (EDA 스크립트와 동일)
+                age_buckets = ['10세 미만', '10대', '20대', '30대', '40대', '50대', '60대', '70대 이상']
                 # 데이터 재구조화 (Melt)
-                plot_df = fp_summary.melt(id_vars='DongName', value_vars=['Age_2039', 'Age_3049'], 
+                plot_df = fp_summary.melt(id_vars='DongName', value_vars=age_buckets, 
                                         var_name='연령대', value_name='인구수')
-                fig_age = px.bar(plot_df, x='DongName', y='인구수', color='연령대', barmode='group',
+                
+                fig_age = px.bar(plot_df, x='연령대', y='인구수', color='DongName', barmode='group',
                                 labels={'DongName': '행정동', '인구수': '평균 생활인구'},
                                 color_discrete_sequence=['#3b82f6', '#f59e0b'])
-                fig_age.update_layout(legend_title_text='연령대', height=400)
+                fig_age.update_layout(height=400)
                 st.plotly_chart(fig_age, use_container_width=True)
             else:
                 st.info("생활인구 분석 데이터가 없습니다.")
