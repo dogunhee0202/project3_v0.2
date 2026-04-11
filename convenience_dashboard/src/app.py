@@ -522,22 +522,24 @@ try:
                 st.info("생활인구 분석 데이터가 없습니다.")
                 
         with col_eda2:
-            st.markdown("#### 🕒 시간대별 매출 패턴 비교")
-            if os.path.exists(rev_sum_path):
+            st.markdown("#### 🕒 [전용 분석] 편의점 시간대별 매출 패턴")
+            rev_sum_path_cvs = "17. cvs_revenue_pattern.csv"
+            if os.path.exists(rev_sum_path_cvs):
                 # 인코딩 명시 (utf-8-sig)
-                rev_summary = pd.read_csv(rev_sum_path, index_col=0, encoding='utf-8-sig')
+                rev_summary = pd.read_csv(rev_sum_path_cvs, index_col=0, encoding='utf-8-sig')
                 # 데이터 재구조화
                 rev_plot_df = rev_summary.T.reset_index()
                 rev_plot_df.columns = ['시간대'] + rev_summary.index.tolist()
                 rev_plot_df = rev_plot_df.melt(id_vars='시간대', var_name='행정동', value_name='매출금액')
                 
                 fig_rev = px.line(rev_plot_df, x='시간대', y='매출금액', color='행정동', markers=True,
-                                labels={'매출금액': '평균 매출액'},
-                                color_discrete_sequence=['#ef4444', '#10b981'])
-                fig_rev.update_layout(height=400)
+                                labels={'매출금액': '평균 매출액 (편의점)'},
+                                color_discrete_sequence=['#ef4444', '#10b981'],
+                                template="plotly_white")
+                fig_rev.update_layout(height=400, margin=dict(l=20, r=20, t=20, b=20))
                 st.plotly_chart(fig_rev, use_container_width=True)
             else:
-                st.info("매출 분석 데이터가 없습니다.")
+                st.info("편의점 매출 분석 데이터가 없습니다.")
 
         st.markdown("---")
         
