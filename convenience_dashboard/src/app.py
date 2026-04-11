@@ -492,8 +492,8 @@ try:
         col_eda1, col_eda2 = st.columns(2)
         
         # 요약 데이터 로드
-        fp_sum_path = "fp_summary.csv"
-        rev_sum_path = "rev_time_summary.csv"
+        fp_sum_path = "15. fp_summary.csv"
+        rev_sum_path = "16. rev_time_summary.csv"
         
         with col_eda1:
             st.markdown("#### 👥 연령대별 생활인구 비교")
